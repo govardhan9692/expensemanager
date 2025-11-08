@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, getDoc, collection, query, onSnapshot, addDoc, deleteDoc, updateDoc, getDocs, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, TrendingUp, TrendingDown, Wallet, Trash2, Settings, Share2, Users, Send, DollarSign, Image as ImageIcon, UserCircle } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, Trash2, Settings, Share2, Users, Send, DollarSign, Image as ImageIcon, UserCircle, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Client } from '@/types/client';
 import ClientsList from '@/components/clients/ClientsList';
 import AddEditClientModal from '@/components/clients/AddEditClientModal';
@@ -78,7 +80,7 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 
 const BusinessDetail = () => {
   const { businessId } = useParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   // Initialize recurring payments check
@@ -97,6 +99,9 @@ const BusinessDetail = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income');
+  const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
@@ -134,6 +139,9 @@ const BusinessDetail = () => {
   const [filterClient, setFilterClient] = useState<string>('all');
 
   useEffect(() => {
+    // Wait for auth to finish loading before redirecting
+    if (authLoading) return;
+    
     if (!user || !businessId) {
       navigate('/auth');
       return;
@@ -192,7 +200,7 @@ const BusinessDetail = () => {
       unsubscribeTransactions();
       unsubscribeClients();
     };
-  }, [user, businessId, navigate]);
+  }, [user, businessId, navigate, authLoading]);
 
   useEffect(() => {
     const searchUsers = async () => {
@@ -238,6 +246,8 @@ const BusinessDetail = () => {
   const handleSubmitTransaction = async (transactionData: TransactionFormData) => {
     if (!user || !businessId) return;
 
+    const isEditing = !!transactionData.id;
+
     try {
       let imageUrl = '';
       if (transactionData.imageFile) {
@@ -246,20 +256,29 @@ const BusinessDetail = () => {
 
       const batch = writeBatch(db);
       const transactionsRef = collection(db, 'businesses', businessId, 'transactions');
-      const newTransactionRef = doc(transactionsRef);
+      
+      // For editing, get the existing transaction
+      const transactionRef = isEditing 
+        ? doc(db, 'businesses', businessId, 'transactions', transactionData.id!)
+        : doc(transactionsRef);
 
-      // Create transaction
+      // Get old transaction data if editing (to reverse changes)
+      let oldTransaction: Transaction | undefined;
+      if (isEditing) {
+        oldTransaction = transactions.find(t => t.id === transactionData.id);
+      }
+
+      // Create/Update transaction document
       const transactionDoc = {
         type: transactionData.type,
         amount: parseFloat(transactionData.amount),
         category: transactionData.category,
         description: transactionData.description,
         date: transactionData.date,
-        imageUrl,
-        createdBy: {
-          userId: user.uid,
-          name: user.displayName || 'Unknown'
-        },
+        ...(imageUrl && { imageUrl }),
+        createdBy: isEditing 
+          ? oldTransaction?.createdBy || { userId: user.uid, name: user.displayName || 'Unknown' }
+          : { userId: user.uid, name: user.displayName || 'Unknown' },
         clientId: transactionData.clientId,
         clientName: transactionData.clientName,
         clientType: transactionData.clientType,
@@ -268,12 +287,42 @@ const BusinessDetail = () => {
         clientExpenseCategory: transactionData.clientExpenseCategory,
         paymentScheduleId: transactionData.paymentScheduleId,
         linkedToSchedule: transactionData.linkedToSchedule,
-        createdAt: new Date().toISOString()
+        ...(isEditing 
+          ? { updatedAt: new Date().toISOString() }
+          : { createdAt: new Date().toISOString() }
+        )
       };
 
-      batch.set(newTransactionRef, transactionDoc);
+      if (isEditing) {
+        batch.update(transactionRef, transactionDoc);
+      } else {
+        batch.set(transactionRef, transactionDoc);
+      }
 
       // Update client financial summary if linked
+      // First, reverse old client changes if editing
+      if (isEditing && oldTransaction?.clientId) {
+        const oldClient = clients.find(c => c.id === oldTransaction.clientId);
+        if (oldClient) {
+          const oldClientRef = doc(db, 'businesses', businessId, 'clients', oldTransaction.clientId);
+          const oldAmount = oldTransaction.amount;
+          
+          if (oldTransaction.type === 'income') {
+            batch.update(oldClientRef, {
+              'financialSummary.totalReceivedIncome': increment(-oldAmount),
+              'financialSummary.totalPendingIncome': increment(oldAmount),
+              'financialSummary.netProfit': increment(-oldAmount)
+            });
+          } else if (oldTransaction.type === 'expense') {
+            batch.update(oldClientRef, {
+              'financialSummary.totalExpenses': increment(-oldAmount),
+              'financialSummary.netProfit': increment(oldAmount)
+            });
+          }
+        }
+      }
+
+      // Now apply new client changes
       if (transactionData.clientId) {
         const client = clients.find(c => c.id === transactionData.clientId);
         if (client) {
@@ -299,7 +348,7 @@ const BusinessDetail = () => {
             if (service?.paymentSchedule) {
               const updatedSchedule = service.paymentSchedule.map(item => 
                 item.scheduleId === transactionData.paymentScheduleId
-                  ? { ...item, status: 'paid' as const, paidDate: new Date().toISOString(), transactionId: newTransactionRef.id }
+                  ? { ...item, status: 'paid' as const, paidDate: new Date().toISOString(), transactionId: transactionRef.id }
                   : item
               );
               
@@ -316,7 +365,7 @@ const BusinessDetail = () => {
       }
 
       await batch.commit();
-      toast.success('Transaction added successfully!');
+      toast.success(isEditing ? 'Transaction updated successfully!' : 'Transaction added successfully!');
     } catch (error) {
       toast.error('Failed to add transaction');
       console.error(error);
@@ -465,62 +514,83 @@ const BusinessDetail = () => {
   const handleDeleteTransaction = async (transactionId: string) => {
     if (!businessId) return;
     
-    try {
-      const transaction = transactions.find(t => t.id === transactionId);
-      if (!transaction) return;
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) return;
 
-      const batch = writeBatch(db);
-      
-      // Delete transaction
-      batch.delete(doc(db, 'businesses', businessId, 'transactions', transactionId));
+    let undoTimerId: NodeJS.Timeout;
+    let isUndone = false;
 
-      // Reverse client financial summary if linked
-      if (transaction.clientId) {
-        const client = clients.find(c => c.id === transaction.clientId);
-        if (client) {
-          const clientRef = doc(db, 'businesses', businessId, 'clients', transaction.clientId);
-          
-          if (transaction.type === 'income') {
-            batch.update(clientRef, {
-              'financialSummary.totalReceivedIncome': increment(-transaction.amount),
-              'financialSummary.totalPendingIncome': increment(transaction.amount),
-              'financialSummary.netProfit': increment(-transaction.amount)
-            });
-          } else if (transaction.type === 'expense') {
-            batch.update(clientRef, {
-              'financialSummary.totalExpenses': increment(-transaction.amount),
-              'financialSummary.netProfit': increment(transaction.amount)
-            });
-          }
+    const deletePromise = new Promise<void>((resolve, reject) => {
+      undoTimerId = setTimeout(async () => {
+        if (!isUndone) {
+          try {
+            const batch = writeBatch(db);
+            
+            // Delete transaction
+            batch.delete(doc(db, 'businesses', businessId, 'transactions', transactionId));
 
-          // Reverse payment schedule if linked
-          if (transaction.paymentScheduleId && transaction.serviceId) {
-            const service = client.services.find(s => s.serviceId === transaction.serviceId);
-            if (service?.paymentSchedule) {
-              const updatedSchedule = service.paymentSchedule.map(item => 
-                item.scheduleId === transaction.paymentScheduleId
-                  ? { ...item, status: 'pending' as const, paidDate: undefined, transactionId: undefined }
-                  : item
-              );
-              
-              const updatedServices = client.services.map(s => 
-                s.serviceId === transaction.serviceId
-                  ? { ...s, paymentSchedule: updatedSchedule }
-                  : s
-              );
-              
-              batch.update(clientRef, { services: updatedServices });
+            // Reverse client financial summary if linked
+            if (transaction.clientId) {
+              const client = clients.find(c => c.id === transaction.clientId);
+              if (client) {
+                const clientRef = doc(db, 'businesses', businessId, 'clients', transaction.clientId);
+                
+                if (transaction.type === 'income') {
+                  batch.update(clientRef, {
+                    'financialSummary.totalReceivedIncome': increment(-transaction.amount),
+                    'financialSummary.totalPendingIncome': increment(transaction.amount),
+                    'financialSummary.netProfit': increment(-transaction.amount)
+                  });
+                } else if (transaction.type === 'expense') {
+                  batch.update(clientRef, {
+                    'financialSummary.totalExpenses': increment(-transaction.amount),
+                    'financialSummary.netProfit': increment(transaction.amount)
+                  });
+                }
+
+                // Reverse payment schedule if linked
+                if (transaction.paymentScheduleId && transaction.serviceId) {
+                  const service = client.services.find(s => s.serviceId === transaction.serviceId);
+                  if (service?.paymentSchedule) {
+                    const updatedSchedule = service.paymentSchedule.map(item => 
+                      item.scheduleId === transaction.paymentScheduleId
+                        ? { ...item, status: 'pending' as const, paidDate: undefined, transactionId: undefined }
+                        : item
+                    );
+                    
+                    const updatedServices = client.services.map(s => 
+                      s.serviceId === transaction.serviceId
+                        ? { ...s, paymentSchedule: updatedSchedule }
+                        : s
+                    );
+                    
+                    batch.update(clientRef, { services: updatedServices });
+                  }
+                }
+              }
             }
+
+            await batch.commit();
+            resolve();
+          } catch (error) {
+            reject(error);
           }
         }
-      }
+      }, 5000);
+    });
 
-      await batch.commit();
-      toast.success('Transaction deleted');
-    } catch (error) {
-      toast.error('Failed to delete transaction');
-      console.error(error);
-    }
+    toast.promise(deletePromise, {
+      loading: 'Transaction will be deleted in 5 seconds...',
+      success: 'Transaction deleted successfully',
+      error: 'Failed to delete transaction',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          isUndone = true;
+          clearTimeout(undoTimerId);
+        }
+      }
+    });
   };
 
   const handleTogglePublicShare = async () => {
@@ -551,12 +621,34 @@ const BusinessDetail = () => {
   const handleRemovePartner = async (partnerId: string) => {
     if (!businessId) return;
 
-    try {
-      await deleteDoc(doc(db, 'businesses', businessId, 'partners', partnerId));
-      toast.success('Partner removed');
-    } catch (error) {
-      toast.error('Failed to remove partner');
-    }
+    let undoTimerId: NodeJS.Timeout;
+    let isUndone = false;
+
+    const deletePromise = new Promise<void>((resolve, reject) => {
+      undoTimerId = setTimeout(async () => {
+        if (!isUndone) {
+          try {
+            await deleteDoc(doc(db, 'businesses', businessId, 'partners', partnerId));
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        }
+      }, 5000);
+    });
+
+    toast.promise(deletePromise, {
+      loading: 'Partner will be removed in 5 seconds...',
+      success: 'Partner removed successfully',
+      error: 'Failed to remove partner',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          isUndone = true;
+          clearTimeout(undoTimerId);
+        }
+      }
+    });
   };
 
   const handleUpdatePermission = async (partnerId: string, newPermission: 'view' | 'edit') => {
@@ -632,20 +724,64 @@ const BusinessDetail = () => {
   const handleDeleteClient = async () => {
     if (!businessId || !selectedClient) return;
 
-    try {
-      await deleteDoc(doc(db, 'businesses', businessId, 'clients', selectedClient.id));
-      toast.success('Client deleted successfully');
-      setViewMode('list');
-      setSelectedClient(null);
-    } catch (error) {
-      toast.error('Failed to delete client');
-      console.error(error);
-    }
+    const clientToDelete = selectedClient;
+    let undoTimerId: NodeJS.Timeout;
+    let isUndone = false;
+
+    const deletePromise = new Promise<void>((resolve, reject) => {
+      undoTimerId = setTimeout(async () => {
+        if (!isUndone) {
+          try {
+            await deleteDoc(doc(db, 'businesses', businessId, 'clients', clientToDelete.id));
+            setViewMode('list');
+            setSelectedClient(null);
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        }
+      }, 5000);
+    });
+
+    toast.promise(deletePromise, {
+      loading: 'Client will be deleted in 5 seconds...',
+      success: 'Client deleted successfully',
+      error: 'Failed to delete client',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          isUndone = true;
+          clearTimeout(undoTimerId);
+        }
+      }
+    });
   };
 
   const handleBackToList = () => {
     setViewMode('list');
     setSelectedClient(null);
+  };
+
+  const handleAddIncomeFromClient = () => {
+    if (selectedClient) {
+      setPreSelectedClientId(selectedClient.id);
+      setTransactionType('income');
+      setIsAddTransactionOpen(true);
+    }
+  };
+
+  const handleAddExpenseFromClient = () => {
+    if (selectedClient) {
+      setPreSelectedClientId(selectedClient.id);
+      setTransactionType('expense');
+      setIsAddTransactionOpen(true);
+    }
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setTransactionType(transaction.type as 'income' | 'expense');
+    setIsAddTransactionOpen(true);
   };
 
   // Calculate totals
@@ -706,34 +842,26 @@ const BusinessDetail = () => {
   const isOwner = userPermission === 'owner';
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/businesses')}>
-                <ArrowLeft className="w-5 h-5" />
+    <AppLayout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold truncate">{business.name}</h1>
+            <Badge variant={isOwner ? 'default' : 'secondary'} className="text-xs mt-1">
+              {isOwner ? 'Owner' : `Partner - ${userPermission === 'edit' ? 'Edit' : 'View'}`}
+            </Badge>
+          </div>
+          <div className="flex gap-2">
+            {isOwner && (
+              <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(true)}>
+                <Settings className="w-4 h-4" />
               </Button>
-              <div className="min-w-0">
-                <h1 className="text-xl font-bold truncate">{business.name}</h1>
-                <Badge variant={isOwner ? 'default' : 'secondary'} className="text-xs">
-                  {isOwner ? 'Owner' : `Partner - ${userPermission === 'edit' ? 'Edit' : 'View'}`}
-                </Badge>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {isOwner && (
-                <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(true)}>
-                  <Settings className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
+        {/* Mobile: Row 1: Income | Expenses, Row 2: Net Profit (full width) */}
+        {/* Desktop: All 3 in one row */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -762,7 +890,7 @@ const BusinessDetail = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="col-span-2 md:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Net Profit
@@ -771,7 +899,7 @@ const BusinessDetail = () => {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-                ${Math.abs(netProfit).toLocaleString()}
+                {netProfit >= 0 ? '+' : '-'}${Math.abs(netProfit).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -779,10 +907,31 @@ const BusinessDetail = () => {
 
         {canEdit && (
           <div className="flex gap-2 mb-6 flex-wrap">
-            <Button onClick={() => setIsAddTransactionOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Transaction
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Transaction
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => {
+                  setTransactionType('income');
+                  setIsAddTransactionOpen(true);
+                }}>
+                  <TrendingUp className="w-4 h-4 mr-2 text-success" />
+                  Add Income
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  setTransactionType('expense');
+                  setIsAddTransactionOpen(true);
+                }}>
+                  <TrendingDown className="w-4 h-4 mr-2 text-danger" />
+                  Add Expense
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {isOwner && (
               <>
@@ -1004,6 +1153,7 @@ const BusinessDetail = () => {
                         key={txn.id}
                         transaction={txn}
                         onDelete={() => handleDeleteTransaction(txn.id)}
+                        onEdit={() => handleEditTransaction(txn)}
                         onViewClient={txn.clientId ? () => handleViewClient(txn.clientId!) : undefined}
                         canEdit={canEdit}
                       />
@@ -1018,6 +1168,7 @@ const BusinessDetail = () => {
             {viewMode === 'list' ? (
               <ClientsList
                 clients={clients}
+                transactions={transactions}
                 onAddClient={() => {
                   setEditingClient(null);
                   setIsAddClientOpen(true);
@@ -1034,6 +1185,12 @@ const BusinessDetail = () => {
                   onEdit={handleEditClient}
                   onDelete={handleDeleteClient}
                   onDeleteTransaction={handleDeleteTransaction}
+                  onEditTransaction={(txnId) => {
+                    const txn = transactions.find(t => t.id === txnId);
+                    if (txn) handleEditTransaction(txn);
+                  }}
+                  onAddIncome={handleAddIncomeFromClient}
+                  onAddExpense={handleAddExpenseFromClient}
                   canEdit={canEdit}
                   isOwner={isOwner}
                 />
@@ -1072,68 +1229,76 @@ const BusinessDetail = () => {
                 )}
                 
                 {/* Original Analytics */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Category Breakdown</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={categoryData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {categoryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  <Card className="md:col-span-2 lg:col-span-1">
+                    <CardHeader>
+                      <CardTitle>Category Breakdown</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="w-full h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={categoryData}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {categoryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Monthly Comparison</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={monthlyData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="income" fill="#10B981" name="Income" />
-                        <Bar dataKey="expenses" fill="#EF4444" name="Expenses" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Monthly Comparison</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="w-full h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={monthlyData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" className="text-xs" />
+                            <YAxis className="text-xs" />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="income" fill="#10B981" name="Income" />
+                            <Bar dataKey="expenses" fill="#EF4444" name="Expenses" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
                 <Card>
                   <CardHeader>
                     <CardTitle>Trend Over Time</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={monthlyData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="income" stroke="#10B981" name="Income" strokeWidth={2} />
-                        <Line type="monotone" dataKey="expenses" stroke="#EF4444" name="Expenses" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <div className="w-full h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={monthlyData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" className="text-xs" />
+                          <YAxis className="text-xs" />
+                          <Tooltip />
+                          <Legend />
+                          <Line type="monotone" dataKey="income" stroke="#10B981" name="Income" strokeWidth={2} />
+                          <Line type="monotone" dataKey="expenses" stroke="#EF4444" name="Expenses" strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                   </CardContent>
                 </Card>
               </>
@@ -1278,10 +1443,9 @@ const BusinessDetail = () => {
             )}
           </TabsContent>
         </Tabs>
-      </main>
 
-      {/* Add/Edit Client Modal */}
-      <AddEditClientModal
+        {/* Add/Edit Client Modal */}
+        <AddEditClientModal
         open={isAddClientOpen}
         onOpenChange={(open) => {
           setIsAddClientOpen(open);
@@ -1296,11 +1460,29 @@ const BusinessDetail = () => {
       {/* Add/Edit Transaction Modal */}
       <AddEditTransactionModal
         open={isAddTransactionOpen}
-        onOpenChange={setIsAddTransactionOpen}
+        onOpenChange={(open) => {
+          setIsAddTransactionOpen(open);
+          if (!open) {
+            setPreSelectedClientId(null);
+            setEditingTransaction(null);
+          }
+        }}
         onSubmit={handleSubmitTransaction}
-        type={formData.type}
+        type={transactionType}
         clients={clients}
         categories={categories}
+        preSelectedClientId={preSelectedClientId}
+        editingTransaction={editingTransaction ? {
+          id: editingTransaction.id,
+          amount: editingTransaction.amount,
+          category: editingTransaction.category,
+          description: editingTransaction.description,
+          date: editingTransaction.date,
+          clientId: editingTransaction.clientId,
+          serviceId: editingTransaction.serviceId,
+          clientExpenseCategory: editingTransaction.clientExpenseCategory,
+          paymentScheduleId: editingTransaction.paymentScheduleId
+        } : null}
       />
 
       {isOwner && (
@@ -1341,7 +1523,8 @@ const BusinessDetail = () => {
           </DialogContent>
         </Dialog>
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

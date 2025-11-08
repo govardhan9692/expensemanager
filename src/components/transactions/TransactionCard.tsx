@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Eye, FileText, Building2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Trash2, Eye, FileText, Building2, Edit, X } from 'lucide-react';
 
 interface TransactionCardProps {
   transaction: {
@@ -19,11 +21,14 @@ interface TransactionCardProps {
     clientExpenseCategory?: string | null;
   };
   onDelete: () => void;
+  onEdit?: () => void;
   onViewClient?: () => void;
   canEdit: boolean;
 }
 
-const TransactionCard = ({ transaction, onDelete, onViewClient, canEdit }: TransactionCardProps) => {
+const TransactionCard = ({ transaction, onDelete, onEdit, onViewClient, canEdit }: TransactionCardProps) => {
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+
   const getTypeIcon = () => {
     if (transaction.type === 'income') return '✅';
     if (transaction.type === 'expense') return '💸';
@@ -62,14 +67,28 @@ const TransactionCard = ({ transaction, onDelete, onViewClient, canEdit }: Trans
               <p className="text-sm text-foreground">{transaction.description}</p>
             </div>
             {canEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0"
-                onClick={onDelete}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-1 shrink-0">
+                {onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={onEdit}
+                    title="Edit transaction"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onDelete}
+                  title="Delete transaction"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             )}
           </div>
 
@@ -116,7 +135,7 @@ const TransactionCard = ({ transaction, onDelete, onViewClient, canEdit }: Trans
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => window.open(transaction.imageUrl, '_blank')}
+                  onClick={() => setReceiptDialogOpen(true)}
                 >
                   <FileText className="w-3 h-3 mr-1" />
                   Receipt
@@ -126,6 +145,36 @@ const TransactionCard = ({ transaction, onDelete, onViewClient, canEdit }: Trans
           </div>
         </div>
       </CardContent>
+
+      {/* Receipt Image Dialog */}
+      {transaction.imageUrl && (
+        <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
+            <DialogHeader className="p-6 pb-4">
+              <div className="flex items-center justify-between">
+                <DialogTitle>Receipt - {transaction.description}</DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setReceiptDialogOpen(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {new Date(transaction.date).toLocaleDateString()} • ${transaction.amount.toLocaleString()}
+              </p>
+            </DialogHeader>
+            <div className="overflow-auto max-h-[calc(90vh-120px)] p-6 pt-0">
+              <img
+                src={transaction.imageUrl}
+                alt="Receipt"
+                className="w-full h-auto rounded-lg"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 };

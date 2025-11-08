@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, addDoc, onSnapshot, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -10,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Plus, Building2, Users } from 'lucide-react';
+import { Plus, Building2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Business {
@@ -22,7 +23,7 @@ interface Business {
 }
 
 const Businesses = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -33,6 +34,9 @@ const Businesses = () => {
   const [partneredBusinesses, setPartneredBusinesses] = useState<Business[]>([]);
 
   useEffect(() => {
+    // Wait for auth to finish loading before redirecting
+    if (authLoading) return;
+    
     if (!user) {
       navigate('/auth');
       return;
@@ -79,7 +83,7 @@ const Businesses = () => {
     getPartneredBusinesses();
 
     return () => unsubscribeOwned();
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,20 +123,14 @@ const Businesses = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div>
-                <h1 className="text-xl font-bold">My Businesses</h1>
-                <p className="text-sm text-muted-foreground">Manage your business profiles</p>
-              </div>
-            </div>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+    <AppLayout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold">My Businesses</h1>
+            <p className="text-sm text-muted-foreground">Manage your business profiles</p>
+          </div>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="w-4 h-4 mr-2" />
@@ -160,11 +158,8 @@ const Businesses = () => {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="owned" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="owned">My Businesses ({ownedBusinesses.length})</TabsTrigger>
@@ -251,8 +246,8 @@ const Businesses = () => {
             )}
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

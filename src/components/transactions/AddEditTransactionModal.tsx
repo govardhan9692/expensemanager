@@ -17,9 +17,22 @@ interface AddEditTransactionModalProps {
   type: 'income' | 'expense';
   clients: Client[];
   categories: string[];
+  preSelectedClientId?: string | null;
+  editingTransaction?: {
+    id: string;
+    amount: number;
+    category: string;
+    description: string;
+    date: string;
+    clientId?: string | null;
+    serviceId?: string | null;
+    clientExpenseCategory?: string | null;
+    paymentScheduleId?: string | null;
+  } | null;
 }
 
 export interface TransactionFormData {
+  id?: string; // Add id for editing
   type: 'income' | 'expense';
   amount: string;
   category: string;
@@ -42,7 +55,9 @@ const AddEditTransactionModal = ({
   onSubmit,
   type,
   clients,
-  categories
+  categories,
+  preSelectedClientId = null,
+  editingTransaction = null
 }: AddEditTransactionModalProps) => {
   const [formData, setFormData] = useState<TransactionFormData>({
     type,
@@ -71,28 +86,69 @@ const AddEditTransactionModal = ({
 
   useEffect(() => {
     if (open) {
-      setFormData({
-        type,
-        amount: '',
-        category: '',
-        description: '',
-        date: new Date().toISOString().split('T')[0],
-        imageFile: null,
-        clientId: null,
-        clientName: null,
-        clientType: null,
-        serviceId: null,
-        serviceName: null,
-        clientExpenseCategory: null,
-        paymentScheduleId: null,
-        linkedToSchedule: false
-      });
+      // If editing, pre-fill form data
+      if (editingTransaction) {
+        setFormData({
+          id: editingTransaction.id,
+          type,
+          amount: editingTransaction.amount.toString(),
+          category: editingTransaction.category,
+          description: editingTransaction.description,
+          date: editingTransaction.date,
+          imageFile: null,
+          clientId: editingTransaction.clientId || null,
+          clientName: null,
+          clientType: null,
+          serviceId: editingTransaction.serviceId || null,
+          serviceName: null,
+          clientExpenseCategory: editingTransaction.clientExpenseCategory || null,
+          paymentScheduleId: editingTransaction.paymentScheduleId || null,
+          linkedToSchedule: !!editingTransaction.paymentScheduleId
+        });
+        
+        // Set selected client if exists
+        if (editingTransaction.clientId) {
+          const client = clients.find(c => c.id === editingTransaction.clientId);
+          if (client) {
+            setSelectedClient(client);
+            // Set selected service if exists
+            if (editingTransaction.serviceId) {
+              const service = client.services.find(s => s.serviceId === editingTransaction.serviceId);
+              if (service) {
+                setSelectedService(service);
+              }
+            }
+          }
+        }
+      } else {
+        // Adding new transaction
+        setFormData({
+          type,
+          amount: '',
+          category: '',
+          description: '',
+          date: new Date().toISOString().split('T')[0],
+          imageFile: null,
+          clientId: null,
+          clientName: null,
+          clientType: null,
+          serviceId: null,
+          serviceName: null,
+          clientExpenseCategory: null,
+          paymentScheduleId: null,
+          linkedToSchedule: false
+        });
+      }
+      
       setImageFile(null);
-      setSelectedClient(null);
-      setSelectedService(null);
-      setSelectedScheduleItem(null);
+
+      // If a client is pre-selected (and not editing), set it
+      if (preSelectedClientId && !editingTransaction) {
+        handleClientChange(preSelectedClientId);
+      }
     }
-  }, [open, type]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, type, preSelectedClientId, editingTransaction]);
 
   const handleClientChange = (clientId: string) => {
     if (clientId === 'none') {
@@ -205,7 +261,9 @@ const AddEditTransactionModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add {type === 'income' ? 'Income' : 'Expense'}</DialogTitle>
+          <DialogTitle>
+            {editingTransaction ? 'Edit' : 'Add'} {type === 'income' ? 'Income' : 'Expense'}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -400,7 +458,7 @@ const AddEditTransactionModal = ({
               Cancel
             </Button>
             <Button type="submit" disabled={uploading}>
-              {uploading ? 'Uploading...' : `Add ${type === 'income' ? 'Income' : 'Expense'}`}
+              {uploading ? 'Saving...' : (editingTransaction ? 'Update' : `Add ${type === 'income' ? 'Income' : 'Expense'}`)}
             </Button>
           </div>
         </form>

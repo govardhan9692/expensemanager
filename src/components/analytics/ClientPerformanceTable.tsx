@@ -110,8 +110,8 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap gap-3">
-          <div className="flex-1 min-w-[200px]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="sm:col-span-2 lg:col-span-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -123,7 +123,7 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
             </div>
           </div>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent>
@@ -134,7 +134,7 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -153,6 +153,7 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
                 setTypeFilter('all');
                 setStatusFilter('all');
               }}
+              className="w-full"
             >
               Clear Filters
             </Button>
@@ -164,14 +165,14 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>
+                <TableHead className="min-w-[120px]">
                   <Button variant="ghost" size="sm" onClick={() => handleSort('name')}>
                     Client
                     <ArrowUpDown className="ml-2 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">
+                <TableHead className="hidden md:table-cell">Type</TableHead>
+                <TableHead className="text-right hidden lg:table-cell">
                   <Button variant="ghost" size="sm" onClick={() => handleSort('expectedIncome')}>
                     Expected
                     <ArrowUpDown className="ml-2 w-3 h-3" />
@@ -183,13 +184,13 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
                     <ArrowUpDown className="ml-2 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right">
+                <TableHead className="text-right hidden sm:table-cell">
                   <Button variant="ghost" size="sm" onClick={() => handleSort('percentPaid')}>
                     % Paid
                     <ArrowUpDown className="ml-2 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right">
+                <TableHead className="text-right hidden lg:table-cell">
                   <Button variant="ghost" size="sm" onClick={() => handleSort('totalExpenses')}>
                     Expenses
                     <ArrowUpDown className="ml-2 w-3 h-3" />
@@ -201,7 +202,7 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
                     <ArrowUpDown className="ml-2 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right">
+                <TableHead className="text-right hidden md:table-cell">
                   <Button variant="ghost" size="sm" onClick={() => handleSort('profitMargin')}>
                     Margin
                     <ArrowUpDown className="ml-2 w-3 h-3" />
@@ -217,31 +218,32 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
                   onClick={() => onClientClick?.(client.id)}
                 >
                   <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell>{client.type}</TableCell>
-                  <TableCell className="text-right">${client.expectedIncome.toLocaleString()}</TableCell>
+                  <TableCell className="hidden md:table-cell">{client.type}</TableCell>
+                  <TableCell className="text-right hidden lg:table-cell">${client.expectedIncome.toLocaleString()}</TableCell>
                   <TableCell className="text-right">${client.receivedIncome.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{client.percentPaid.toFixed(0)}%</TableCell>
-                  <TableCell className="text-right">${client.totalExpenses.toLocaleString()}</TableCell>
+                  <TableCell className="text-right hidden sm:table-cell">{client.percentPaid.toFixed(0)}%</TableCell>
+                  <TableCell className="text-right hidden lg:table-cell">${client.totalExpenses.toLocaleString()}</TableCell>
                   <TableCell className={`text-right font-medium ${client.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                     ${Math.abs(client.netProfit).toLocaleString()}
                   </TableCell>
-                  <TableCell className={`text-right font-medium ${client.profitMargin >= 80 ? 'text-success' : client.profitMargin >= 50 ? 'text-warning' : 'text-danger'}`}>
+                  <TableCell className={`text-right font-medium hidden md:table-cell ${client.profitMargin >= 80 ? 'text-success' : client.profitMargin >= 50 ? 'text-warning' : 'text-danger'}`}>
                     {client.profitMargin.toFixed(0)}%
                   </TableCell>
                 </TableRow>
               ))}
               <TableRow className="font-bold bg-muted/50">
-                <TableCell colSpan={2}>TOTAL</TableCell>
-                <TableCell className="text-right">${totals.expectedIncome.toLocaleString()}</TableCell>
+                <TableCell>TOTAL</TableCell>
+                <TableCell className="hidden md:table-cell"></TableCell>
+                <TableCell className="text-right hidden lg:table-cell">${totals.expectedIncome.toLocaleString()}</TableCell>
                 <TableCell className="text-right">${totals.receivedIncome.toLocaleString()}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right hidden sm:table-cell">
                   {totals.expectedIncome > 0 ? ((totals.receivedIncome / totals.expectedIncome) * 100).toFixed(0) : 0}%
                 </TableCell>
-                <TableCell className="text-right">${totals.totalExpenses.toLocaleString()}</TableCell>
+                <TableCell className="text-right hidden lg:table-cell">${totals.totalExpenses.toLocaleString()}</TableCell>
                 <TableCell className={`text-right ${totals.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                   ${Math.abs(totals.netProfit).toLocaleString()}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right hidden md:table-cell">
                   {totals.receivedIncome > 0 ? ((totals.netProfit / totals.receivedIncome) * 100).toFixed(0) : 0}%
                 </TableCell>
               </TableRow>

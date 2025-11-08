@@ -7,14 +7,23 @@ import { Input } from '@/components/ui/input';
 import { Plus, DollarSign, TrendingUp, Clock, Wallet, Search } from 'lucide-react';
 import ClientCard from './ClientCard';
 
+interface Transaction {
+  id: string;
+  type: 'income' | 'expense' | 'transfer_to_personal' | 'profit_distribution';
+  amount: number;
+  date: string;
+  clientId?: string | null;
+}
+
 interface ClientsListProps {
   clients: Client[];
+  transactions?: Transaction[];
   onAddClient: () => void;
   onViewClient: (clientId: string) => void;
   canEdit: boolean;
 }
 
-const ClientsList = ({ clients, onAddClient, onViewClient, canEdit }: ClientsListProps) => {
+const ClientsList = ({ clients, transactions = [], onAddClient, onViewClient, canEdit }: ClientsListProps) => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,23 +37,17 @@ const ClientsList = ({ clients, onAddClient, onViewClient, canEdit }: ClientsLis
     
     let expectedThisMonth = 0;
     let receivedThisMonth = 0;
+    let pendingThisMonth = 0;
     
+    // Sum up financial summary values from ALL clients
+    // This gives us the total expected, received, and pending across all clients
     clients.forEach(client => {
-      // Expected this month from payment schedules
-      client.services.forEach(service => {
-        service.paymentSchedule?.forEach(payment => {
-          const paymentDate = new Date(payment.dueDate);
-          if (paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear) {
-            expectedThisMonth += payment.amount;
-            if (payment.status === 'paid') {
-              receivedThisMonth += payment.amount;
-            }
-          }
-        });
-      });
+      expectedThisMonth += client.financialSummary.totalExpectedIncome;
+      receivedThisMonth += client.financialSummary.totalReceivedIncome;
+      pendingThisMonth += client.financialSummary.totalPendingIncome;
     });
-
-    const pendingThisMonth = expectedThisMonth - receivedThisMonth;
+    
+    // Calculate total net profit across all clients
     const totalNetProfit = clients.reduce((sum, c) => sum + c.financialSummary.netProfit, 0);
 
     return {
@@ -54,7 +57,7 @@ const ClientsList = ({ clients, onAddClient, onViewClient, canEdit }: ClientsLis
       pendingThisMonth,
       totalNetProfit
     };
-  }, [clients]);
+  }, [clients, transactions]);
 
   // Filter clients
   const filteredClients = useMemo(() => {
@@ -97,8 +100,8 @@ const ClientsList = ({ clients, onAddClient, onViewClient, canEdit }: ClientsLis
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-5">
+      {/* Summary Cards - 2 per row */}
+      <div className="grid gap-4 grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -150,21 +153,26 @@ const ClientsList = ({ clients, onAddClient, onViewClient, canEdit }: ClientsLis
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              <Wallet className="w-4 h-4 text-primary" />
-              Total Net Profit
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${summary.totalNetProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-              ${summary.totalNetProfit.toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Total Net Profit - Prominent Display */}
+      <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+        <CardContent className="py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                <Wallet className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Net Profit</p>
+                <div className={`text-3xl font-bold ${summary.totalNetProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {summary.totalNetProfit >= 0 ? '+' : '-'}${Math.abs(summary.totalNetProfit).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

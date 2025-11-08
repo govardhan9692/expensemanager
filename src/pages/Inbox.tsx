@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, Check, X, DollarSign } from 'lucide-react';
+import { Mail, Check, X, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Notification {
@@ -24,12 +25,15 @@ interface Notification {
 }
 
 const Inbox = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Wait for auth to finish loading before redirecting
+    if (authLoading) return;
+    
     if (!user) {
       navigate('/auth');
       return;
@@ -51,7 +55,7 @@ const Inbox = () => {
     });
 
     return () => unsubscribe();
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   const handleAcceptInvitation = async (notification: Notification) => {
     if (!user || !notification.businessId) return;
@@ -108,15 +112,35 @@ const Inbox = () => {
   const handleDelete = async (notificationId: string) => {
     if (!user) return;
 
-    try {
-      await deleteDoc(doc(db, 'users', user.uid, 'inbox', notificationId));
-      toast.success('Notification deleted');
-    } catch (error) {
-      toast.error('Failed to delete notification');
-    }
-  };
+    let undoTimerId: NodeJS.Timeout;
+    let isUndone = false;
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+    const deletePromise = new Promise<void>((resolve, reject) => {
+      undoTimerId = setTimeout(async () => {
+        if (!isUndone) {
+          try {
+            await deleteDoc(doc(db, 'users', user.uid, 'inbox', notificationId));
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        }
+      }, 5000);
+    });
+
+    toast.promise(deletePromise, {
+      loading: 'Notification will be deleted in 5 seconds...',
+      success: 'Notification deleted successfully',
+      error: 'Failed to delete notification',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          isUndone = true;
+          clearTimeout(undoTimerId);
+        }
+      }
+    });
+  };
 
   if (loading) {
     return (
@@ -126,27 +150,17 @@ const Inbox = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div>
-                <h1 className="text-xl font-bold">Inbox</h1>
-                <p className="text-sm text-muted-foreground">
-                  {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+  const unreadCount = notifications.filter(n => !n.read).length;
 
-      <main className="container mx-auto px-4 py-6">
+  return (
+    <AppLayout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold">Inbox</h1>
+          <p className="text-sm text-muted-foreground">
+            {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
+          </p>
+        </div>
         {notifications.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -271,8 +285,8 @@ const Inbox = () => {
             ))}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

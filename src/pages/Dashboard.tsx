@@ -3,32 +3,46 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Building2, TrendingUp, TrendingDown, LogOut, Plus, Bell } from 'lucide-react';
-import { UpcomingPaymentsWidget } from '@/components/dashboard/UpcomingPaymentsWidget';
-import { RecurringRevenueWidget } from '@/components/dashboard/RecurringRevenueWidget';
-import { ClientsOverviewWidget } from '@/components/dashboard/ClientsOverviewWidget';
+import { Wallet, Building2, TrendingUp, TrendingDown, Plus, Users, Calendar, DollarSign } from 'lucide-react';
 
 interface Transaction {
   id: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer_to_personal' | 'profit_distribution';
   amount: number;
   category: string;
   description: string;
   date: string;
 }
 
+interface Client {
+  id: string;
+  basicInfo: {
+    status: string;
+  };
+  financialSummary: {
+    totalExpectedIncome: number;
+    totalReceivedIncome: number;
+    totalPendingIncome: number;
+  };
+}
+
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [personalTransactions, setPersonalTransactions] = useState<Transaction[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [businesses, setBusinesses] = useState<{ id: string; name: string }[]>([]);
+  const [businessTransactions, setBusinessTransactions] = useState<Transaction[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Wait for auth to finish loading before redirecting
+    if (authLoading) return;
+    
     if (!user) {
       navigate('/auth');
       return;
@@ -46,13 +60,7 @@ const Dashboard = () => {
       setLoading(false);
     });
 
-    const inboxRef = collection(db, 'users', user.uid, 'inbox');
-    const unsubscribeInbox = onSnapshot(inboxRef, (snapshot) => {
-      const unread = snapshot.docs.filter(doc => !doc.data().read).length;
-      setUnreadCount(unread);
-    });
-
-    // Load businesses
+    // Load businesses and their data
     const loadBusinesses = async () => {
       try {
         const businessesRef = collection(db, 'businesses');
@@ -65,6 +73,33 @@ const Dashboard = () => {
         }));
         
         setBusinesses(bizList);
+
+        // Load all transactions from all businesses
+        const allBizTransactions: Transaction[] = [];
+        const allBizClients: Client[] = [];
+
+        for (const biz of bizList) {
+          // Load business transactions
+          const txnsRef = collection(db, 'businesses', biz.id, 'transactions');
+          const txnsSnapshot = await getDocs(txnsRef);
+          const txns = txnsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Transaction[];
+          allBizTransactions.push(...txns);
+
+          // Load business clients
+          const clientsRef = collection(db, 'businesses', biz.id, 'clients');
+          const clientsSnapshot = await getDocs(clientsRef);
+          const clients = clientsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Client[];
+          allBizClients.push(...clients);
+        }
+
+        setBusinessTransactions(allBizTransactions);
+        setAllClients(allBizClients);
       } catch (error) {
         console.error('Error loading businesses:', error);
       }
@@ -74,26 +109,41 @@ const Dashboard = () => {
 
     return () => {
       unsubscribeTransactions();
-      unsubscribeInbox();
     };
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
-  const totalIncome = personalTransactions
+  // Personal calculations
+  const personalIncome = personalTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpenses = personalTransactions
+  const personalExpenses = personalTransactions
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const netProfit = totalIncome - totalExpenses;
+  const personalNetProfit = personalIncome - personalExpenses;
 
-  if (loading) {
+  // Business calculations (combined)
+  const businessIncome = businessTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const businessExpenses = businessTransactions
+    .filter(t => ['expense', 'transfer_to_personal', 'profit_distribution'].includes(t.type))
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const businessNetProfit = businessIncome - businessExpenses;
+
+  // Client metrics
+  const activeClients = allClients.filter(c => c.basicInfo.status === 'Active').length;
+  const totalExpectedThisMonth = allClients.reduce((sum, c) => sum + c.financialSummary.totalExpectedIncome, 0);
+  const totalReceivedThisMonth = allClients.reduce((sum, c) => sum + c.financialSummary.totalReceivedIncome, 0);
+  const totalPendingThisMonth = allClients.reduce((sum, c) => sum + c.financialSummary.totalPendingIncome, 0);
+
+  // Total net profit (Personal + Business)
+  const totalNetProfit = personalNetProfit + businessNetProfit;
+
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -105,103 +155,185 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Expense Manager</h1>
-                <p className="text-sm text-muted-foreground">{user?.displayName}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate('/inbox')} className="relative">
-                <Bell className="w-4 h-4" />
-                {unreadCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <AppLayout>
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-2">Welcome back, {user?.displayName?.split(' ')[0]}!</h2>
           <p className="text-muted-foreground">Here's your financial overview</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Income
-              </CardTitle>
-              <TrendingUp className="w-4 h-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
-                ${totalIncome.toLocaleString()}
+        {/* Total Net Profit Banner - Prominent Display */}
+        <Card className="mb-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+          <CardContent className="py-6">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground mb-2">Total Net Profit (Personal + All Businesses)</p>
+              <div className={`text-4xl font-bold ${totalNetProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                {totalNetProfit >= 0 ? '+' : '-'}${Math.abs(totalNetProfit).toLocaleString()}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Expenses
-              </CardTitle>
-              <TrendingDown className="w-4 h-4 text-danger" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-danger">
-                ${totalExpenses.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Net Profit/Loss
-              </CardTitle>
-              <Wallet className="w-4 h-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-                ${Math.abs(netProfit).toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
+        {/* Personal Section */}
         <div className="mb-8">
-          <UpcomingPaymentsWidget />
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Wallet className="w-5 h-5" />
+            Personal Finances
+          </h3>
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Income
+                </CardTitle>
+                <TrendingUp className="w-4 h-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-success">
+                  ${personalIncome.toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Expenses
+                </CardTitle>
+                <TrendingDown className="w-4 h-4 text-danger" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-danger">
+                  ${personalExpenses.toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="col-span-2 md:col-span-1">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Net Profit
+                </CardTitle>
+                <Wallet className="w-4 h-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${personalNetProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {personalNetProfit >= 0 ? '+' : '-'}${Math.abs(personalNetProfit).toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
+        {/* All Businesses Combined Section */}
         {businesses.length > 0 && (
           <div className="mb-8">
-            <RecurringRevenueWidget businesses={businesses} />
-          </div>
-        )}
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              All Businesses Combined
+            </h3>
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Income
+                  </CardTitle>
+                  <TrendingUp className="w-4 h-4 text-success" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-success">
+                    ${businessIncome.toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
 
-        {businesses.length > 0 && (
-          <div className="mb-8">
-            <ClientsOverviewWidget 
-              clients={[]} 
-              businessId={businesses[0]?.id || ''} 
-            />
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Expenses
+                  </CardTitle>
+                  <TrendingDown className="w-4 h-4 text-danger" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-danger">
+                    ${businessExpenses.toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="col-span-2 md:col-span-1">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Net Profit
+                  </CardTitle>
+                  <Wallet className="w-4 h-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${businessNetProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                    {businessNetProfit >= 0 ? '+' : '-'}${Math.abs(businessNetProfit).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Business Metrics - 2 per row on mobile */}
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4 mt-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Active Clients
+                  </CardTitle>
+                  <Users className="w-4 h-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {activeClients}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Expected This Month
+                  </CardTitle>
+                  <Calendar className="w-4 h-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-500">
+                    ${totalExpectedThisMonth.toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Received This Month
+                  </CardTitle>
+                  <DollarSign className="w-4 h-4 text-success" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-success">
+                    ${totalReceivedThisMonth.toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Pending This Month
+                  </CardTitle>
+                  <TrendingUp className="w-4 h-4 text-warning" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-warning">
+                    ${totalPendingThisMonth.toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 
@@ -259,7 +391,7 @@ const Dashboard = () => {
           </Card>
         )}
       </main>
-    </div>
+    </AppLayout>
   );
 };
 

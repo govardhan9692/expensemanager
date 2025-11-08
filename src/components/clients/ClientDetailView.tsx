@@ -22,6 +22,9 @@ interface ClientDetailViewProps {
   onEdit: () => void;
   onDelete: () => void;
   onDeleteTransaction: (transactionId: string) => void;
+  onEditTransaction?: (transactionId: string) => void;
+  onAddIncome?: () => void;
+  onAddExpense?: () => void;
   canEdit: boolean;
   isOwner: boolean;
 }
@@ -33,6 +36,9 @@ const ClientDetailView = ({
   onEdit,
   onDelete,
   onDeleteTransaction,
+  onEditTransaction,
+  onAddIncome,
+  onAddExpense,
   canEdit,
   isOwner
 }: ClientDetailViewProps) => {
@@ -112,10 +118,10 @@ const ClientDetailView = ({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue="transactions" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schedule">Payment Schedule</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
@@ -300,11 +306,11 @@ const ClientDetailView = ({
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-3">
-                <Button variant="outline" className="flex-1">
+                <Button variant="outline" className="flex-1" onClick={onAddIncome}>
                   <DollarSign className="w-4 h-4 mr-2" />
                   Add Income
                 </Button>
-                <Button variant="outline" className="flex-1">
+                <Button variant="outline" className="flex-1" onClick={onAddExpense}>
                   <TrendingDown className="w-4 h-4 mr-2" />
                   Add Expense
                 </Button>
@@ -405,11 +411,11 @@ const ClientDetailView = ({
                   <p className="text-muted-foreground mb-4">No transactions yet for {basicInfo.name}</p>
                   {canEdit && (
                     <div className="flex justify-center gap-3">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={onAddIncome}>
                         <TrendingUp className="w-4 h-4 mr-2" />
                         Add Income
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={onAddExpense}>
                         <TrendingDown className="w-4 h-4 mr-2" />
                         Add Expense
                       </Button>
@@ -423,6 +429,7 @@ const ClientDetailView = ({
                       key={txn.id}
                       transaction={txn}
                       onDelete={() => onDeleteTransaction(txn.id)}
+                      onEdit={onEditTransaction ? () => onEditTransaction(txn.id) : undefined}
                       canEdit={canEdit}
                     />
                   ))}
