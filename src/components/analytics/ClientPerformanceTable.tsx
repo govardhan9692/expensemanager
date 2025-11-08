@@ -98,19 +98,19 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
   const uniqueStatuses = Array.from(new Set(data.map(d => d.status)));
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <CardTitle>Client Performance Report</CardTitle>
-          <Button variant="outline" size="sm" onClick={handleExport}>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle className="text-base md:text-lg">Client Performance Report</CardTitle>
+          <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto">
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            <span className="whitespace-nowrap">Export CSV</span>
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 md:space-y-4 px-3 md:px-6">
         {/* Filters */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2 lg:col-span-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -161,51 +161,51 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
         </div>
 
         {/* Table */}
-        <div className="border rounded-lg overflow-x-auto">
+        <div className="border rounded-lg overflow-x-auto -mx-3 md:mx-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[120px]">
-                  <Button variant="ghost" size="sm" onClick={() => handleSort('name')}>
+                <TableHead className="min-w-[100px] sticky left-0 bg-background z-10">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('name')} className="text-xs md:text-sm h-8 px-2">
                     Client
-                    <ArrowUpDown className="ml-2 w-3 h-3" />
+                    <ArrowUpDown className="ml-1 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="hidden md:table-cell">Type</TableHead>
-                <TableHead className="text-right hidden lg:table-cell">
-                  <Button variant="ghost" size="sm" onClick={() => handleSort('expectedIncome')}>
+                <TableHead className="hidden md:table-cell min-w-[80px]">Type</TableHead>
+                <TableHead className="text-right hidden lg:table-cell min-w-[100px]">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('expectedIncome')} className="text-xs md:text-sm h-8 px-2">
                     Expected
-                    <ArrowUpDown className="ml-2 w-3 h-3" />
+                    <ArrowUpDown className="ml-1 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => handleSort('receivedIncome')}>
+                <TableHead className="text-right min-w-[100px]">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('receivedIncome')} className="text-xs md:text-sm h-8 px-2">
                     Received
-                    <ArrowUpDown className="ml-2 w-3 h-3" />
+                    <ArrowUpDown className="ml-1 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right hidden sm:table-cell">
-                  <Button variant="ghost" size="sm" onClick={() => handleSort('percentPaid')}>
+                <TableHead className="text-right hidden sm:table-cell min-w-[90px]">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('percentPaid')} className="text-xs md:text-sm h-8 px-2">
                     % Paid
-                    <ArrowUpDown className="ml-2 w-3 h-3" />
+                    <ArrowUpDown className="ml-1 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right hidden lg:table-cell">
-                  <Button variant="ghost" size="sm" onClick={() => handleSort('totalExpenses')}>
+                <TableHead className="text-right hidden lg:table-cell min-w-[100px]">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('totalExpenses')} className="text-xs md:text-sm h-8 px-2">
                     Expenses
-                    <ArrowUpDown className="ml-2 w-3 h-3" />
+                    <ArrowUpDown className="ml-1 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => handleSort('netProfit')}>
-                    Net Profit
-                    <ArrowUpDown className="ml-2 w-3 h-3" />
+                <TableHead className="text-right min-w-[100px]">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('netProfit')} className="text-xs md:text-sm h-8 px-2">
+                    Profit
+                    <ArrowUpDown className="ml-1 w-3 h-3" />
                   </Button>
                 </TableHead>
-                <TableHead className="text-right hidden md:table-cell">
-                  <Button variant="ghost" size="sm" onClick={() => handleSort('profitMargin')}>
+                <TableHead className="text-right hidden md:table-cell min-w-[90px]">
+                  <Button variant="ghost" size="sm" onClick={() => handleSort('profitMargin')} className="text-xs md:text-sm h-8 px-2">
                     Margin
-                    <ArrowUpDown className="ml-2 w-3 h-3" />
+                    <ArrowUpDown className="ml-1 w-3 h-3" />
                   </Button>
                 </TableHead>
               </TableRow>
@@ -217,33 +217,33 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
                   className={`cursor-pointer ${getRowColor(client.profitMargin)}`}
                   onClick={() => onClientClick?.(client.id)}
                 >
-                  <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell className="hidden md:table-cell">{client.type}</TableCell>
-                  <TableCell className="text-right hidden lg:table-cell">${client.expectedIncome.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">${client.receivedIncome.toLocaleString()}</TableCell>
-                  <TableCell className="text-right hidden sm:table-cell">{client.percentPaid.toFixed(0)}%</TableCell>
-                  <TableCell className="text-right hidden lg:table-cell">${client.totalExpenses.toLocaleString()}</TableCell>
-                  <TableCell className={`text-right font-medium ${client.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                  <TableCell className="font-medium text-xs md:text-sm sticky left-0 bg-inherit z-10">{client.name}</TableCell>
+                  <TableCell className="hidden md:table-cell text-xs md:text-sm">{client.type}</TableCell>
+                  <TableCell className="text-right hidden lg:table-cell text-xs md:text-sm">${client.expectedIncome.toLocaleString()}</TableCell>
+                  <TableCell className="text-right text-xs md:text-sm">${client.receivedIncome.toLocaleString()}</TableCell>
+                  <TableCell className="text-right hidden sm:table-cell text-xs md:text-sm">{client.percentPaid.toFixed(0)}%</TableCell>
+                  <TableCell className="text-right hidden lg:table-cell text-xs md:text-sm">${client.totalExpenses.toLocaleString()}</TableCell>
+                  <TableCell className={`text-right font-medium text-xs md:text-sm ${client.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                     ${Math.abs(client.netProfit).toLocaleString()}
                   </TableCell>
-                  <TableCell className={`text-right font-medium hidden md:table-cell ${client.profitMargin >= 80 ? 'text-success' : client.profitMargin >= 50 ? 'text-warning' : 'text-danger'}`}>
+                  <TableCell className={`text-right font-medium hidden md:table-cell text-xs md:text-sm ${client.profitMargin >= 80 ? 'text-success' : client.profitMargin >= 50 ? 'text-warning' : 'text-danger'}`}>
                     {client.profitMargin.toFixed(0)}%
                   </TableCell>
                 </TableRow>
               ))}
               <TableRow className="font-bold bg-muted/50">
-                <TableCell>TOTAL</TableCell>
+                <TableCell className="text-xs md:text-sm sticky left-0 bg-muted/50 z-10">TOTAL</TableCell>
                 <TableCell className="hidden md:table-cell"></TableCell>
-                <TableCell className="text-right hidden lg:table-cell">${totals.expectedIncome.toLocaleString()}</TableCell>
-                <TableCell className="text-right">${totals.receivedIncome.toLocaleString()}</TableCell>
-                <TableCell className="text-right hidden sm:table-cell">
+                <TableCell className="text-right hidden lg:table-cell text-xs md:text-sm">${totals.expectedIncome.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-xs md:text-sm">${totals.receivedIncome.toLocaleString()}</TableCell>
+                <TableCell className="text-right hidden sm:table-cell text-xs md:text-sm">
                   {totals.expectedIncome > 0 ? ((totals.receivedIncome / totals.expectedIncome) * 100).toFixed(0) : 0}%
                 </TableCell>
-                <TableCell className="text-right hidden lg:table-cell">${totals.totalExpenses.toLocaleString()}</TableCell>
-                <TableCell className={`text-right ${totals.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                <TableCell className="text-right hidden lg:table-cell text-xs md:text-sm">${totals.totalExpenses.toLocaleString()}</TableCell>
+                <TableCell className={`text-right text-xs md:text-sm ${totals.netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                   ${Math.abs(totals.netProfit).toLocaleString()}
                 </TableCell>
-                <TableCell className="text-right hidden md:table-cell">
+                <TableCell className="text-right hidden md:table-cell text-xs md:text-sm">
                   {totals.receivedIncome > 0 ? ((totals.netProfit / totals.receivedIncome) * 100).toFixed(0) : 0}%
                 </TableCell>
               </TableRow>
@@ -251,7 +251,7 @@ export const ClientPerformanceTable = ({ data, onClientClick }: ClientPerformanc
           </Table>
         </div>
 
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs md:text-sm text-muted-foreground">
           Showing {filteredAndSortedData.length} of {data.length} clients
         </p>
       </CardContent>

@@ -135,11 +135,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <header className="sticky top-0 z-10 flex h-12 md:h-14 shrink-0 items-center gap-2 border-b bg-background px-3 md:px-4">
           <SidebarTrigger />
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="h-6 w-px bg-border" />
-            <span className="font-semibold truncate">
+            <span className="font-semibold text-sm md:text-base truncate">
               {location.pathname === '/dashboard' && 'Dashboard'}
               {location.pathname === '/personal' && 'Personal Profile'}
               {location.pathname === '/businesses' && 'Business Profile'}

@@ -843,15 +843,15 @@ const BusinessDetail = () => {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="container mx-auto px-4 py-4 md:py-8 max-w-7xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold truncate">{business.name}</h1>
-            <Badge variant={isOwner ? 'default' : 'secondary'} className="text-xs mt-1">
+            <h1 className="text-xl md:text-2xl font-bold truncate">{business.name}</h1>
+            <Badge variant={isOwner ? 'default' : 'secondary'} className="text-xs mt-1 w-fit">
               {isOwner ? 'Owner' : `Partner - ${userPermission === 'edit' ? 'Edit' : 'View'}`}
             </Badge>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             {isOwner && (
               <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(true)}>
                 <Settings className="w-4 h-4" />
@@ -859,46 +859,46 @@ const BusinessDetail = () => {
             )}
           </div>
         </div>
-        {/* Mobile: Row 1: Income | Expenses, Row 2: Net Profit (full width) */}
+        {/* Mobile: Row 1: Income | Expenses (2 cols), Row 2: Net Profit (full width) */}
         {/* Desktop: All 3 in one row */}
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3 mb-4 md:mb-6">
+          <Card className="overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
                 Total Income
               </CardTitle>
-              <TrendingUp className="w-4 h-4 text-success" />
+              <TrendingUp className="w-4 h-4 text-success shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
+            <CardContent className="pb-3">
+              <div className="text-lg md:text-2xl font-bold text-success truncate">
                 ${totalIncome.toLocaleString()}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+          <Card className="overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
                 Total Expenses
               </CardTitle>
-              <TrendingDown className="w-4 h-4 text-danger" />
+              <TrendingDown className="w-4 h-4 text-danger shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-danger">
+            <CardContent className="pb-3">
+              <div className="text-lg md:text-2xl font-bold text-danger truncate">
                 ${totalExpenses.toLocaleString()}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2 md:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+          <Card className="overflow-hidden col-span-2 md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
                 Net Profit
               </CardTitle>
-              <Wallet className="w-4 h-4 text-primary" />
+              <Wallet className="w-4 h-4 text-primary shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+            <CardContent className="pb-3">
+              <div className={`text-lg md:text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                 {netProfit >= 0 ? '+' : '-'}${Math.abs(netProfit).toLocaleString()}
               </div>
             </CardContent>
@@ -906,12 +906,12 @@ const BusinessDetail = () => {
         </div>
 
         {canEdit && (
-          <div className="flex gap-2 mb-6 flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-2 mb-4 md:mb-6">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Transaction
+                  <span className="whitespace-nowrap">Add Transaction</span>
                   <ChevronDown className="w-4 h-4 ml-2" />
                 </Button>
               </DropdownMenuTrigger>
@@ -937,9 +937,9 @@ const BusinessDetail = () => {
               <>
                 <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button variant="outline" className="w-full sm:w-auto">
                       <Send className="w-4 h-4 mr-2" />
-                      Transfer to Personal
+                      <span className="whitespace-nowrap">Transfer to Personal</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -980,9 +980,9 @@ const BusinessDetail = () => {
 
                 <Dialog open={isDistributeOpen} onOpenChange={setIsDistributeOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button variant="outline" className="w-full sm:w-auto">
                       <DollarSign className="w-4 h-4 mr-2" />
-                      Distribute Profit
+                      <span className="whitespace-nowrap">Distribute Profit</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -1044,25 +1044,34 @@ const BusinessDetail = () => {
           </div>
         )}
 
-        <Tabs defaultValue="transactions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="clients">Clients</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="partners">Partners</TabsTrigger>
+        <Tabs defaultValue="transactions" className="space-y-4 md:space-y-6">
+          <TabsList className="grid w-full grid-cols-4 h-auto">
+            <TabsTrigger value="transactions" className="text-xs sm:text-sm px-2 py-2">
+              <span className="hidden sm:inline">Transactions</span>
+              <span className="sm:hidden">Trans.</span>
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="text-xs sm:text-sm px-2 py-2">Clients</TabsTrigger>
+            <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 py-2">
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Stats</span>
+            </TabsTrigger>
+            <TabsTrigger value="partners" className="text-xs sm:text-sm px-2 py-2">
+              <span className="hidden sm:inline">Partners</span>
+              <span className="sm:hidden">Team</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="transactions" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Filters</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base md:text-lg">Filters</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label>Category</Label>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs md:text-sm">Category</Label>
                     <Select value={filterCategory} onValueChange={setFilterCategory}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-popover z-50">
@@ -1073,10 +1082,10 @@ const BusinessDetail = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Client/Project</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs md:text-sm">Client/Project</Label>
                     <Select value={filterClient} onValueChange={setFilterClient}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-popover z-50">
@@ -1084,7 +1093,7 @@ const BusinessDetail = () => {
                         <SelectItem value="general">General Business Only</SelectItem>
                         {clients.length > 0 && (
                           <>
-                            <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
                               --- Clients ---
                             </div>
                             {clients.map(client => (
@@ -1097,18 +1106,20 @@ const BusinessDetail = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>From Date</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs md:text-sm">From Date</Label>
                     <Input
                       type="date"
+                      className="h-9 text-sm"
                       value={filterDateFrom}
                       onChange={(e) => setFilterDateFrom(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>To Date</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs md:text-sm">To Date</Label>
                     <Input
                       type="date"
+                      className="h-9 text-sm"
                       value={filterDateTo}
                       onChange={(e) => setFilterDateTo(e.target.value)}
                     />
@@ -1229,13 +1240,13 @@ const BusinessDetail = () => {
                 )}
                 
                 {/* Original Analytics */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  <Card className="md:col-span-2 lg:col-span-1">
-                    <CardHeader>
-                      <CardTitle>Category Breakdown</CardTitle>
+                <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-3">
+                  <Card className="lg:col-span-1 overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base md:text-lg">Category Breakdown</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="w-full h-[300px]">
+                    <CardContent className="px-2 md:px-6">
+                      <div className="w-full h-[250px] md:h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
@@ -1259,12 +1270,12 @@ const BusinessDetail = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="md:col-span-2">
-                    <CardHeader>
-                      <CardTitle>Monthly Comparison</CardTitle>
+                  <Card className="lg:col-span-2 overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base md:text-lg">Monthly Comparison</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="w-full h-[300px]">
+                    <CardContent className="px-2 md:px-6">
+                      <div className="w-full h-[250px] md:h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={monthlyData}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -1281,12 +1292,12 @@ const BusinessDetail = () => {
                   </Card>
                 </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Trend Over Time</CardTitle>
+                <Card className="overflow-hidden">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base md:text-lg">Trend Over Time</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="w-full h-[300px]">
+                  <CardContent className="px-2 md:px-6">
+                    <div className="w-full h-[250px] md:h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={monthlyData}>
                           <CartesianGrid strokeDasharray="3 3" />

@@ -100,55 +100,55 @@ const ClientsList = ({ clients, transactions = [], onAddClient, onViewClient, ca
         )}
       </div>
 
-      {/* Summary Cards - 2 per row */}
-      <div className="grid gap-4 grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+      {/* Summary Cards - 2 per row on mobile, 4 on larger screens */}
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 space-y-0">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Active Clients
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.activeClients}</div>
+          <CardContent className="pb-3">
+            <div className="text-xl md:text-2xl font-bold">{summary.activeClients}</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Expected This Month
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 space-y-0">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+              Expected
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="pb-3">
+            <div className="text-lg md:text-2xl font-bold truncate">
               ${summary.expectedThisMonth.toLocaleString()}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="w-4 h-4 text-success" />
-              Received This Month
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 space-y-0">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-success" />
+              Received
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">
+          <CardContent className="pb-3">
+            <div className="text-lg md:text-2xl font-bold text-success truncate">
               ${summary.receivedThisMonth.toLocaleString()}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-              <Clock className="w-4 h-4 text-warning" />
-              Pending This Month
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2 space-y-0">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3 md:w-4 md:h-4 text-warning" />
+              Pending
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-warning">
+          <CardContent className="pb-3">
+            <div className="text-lg md:text-2xl font-bold text-warning truncate">
               ${summary.pendingThisMonth.toLocaleString()}
             </div>
           </CardContent>
@@ -156,18 +156,16 @@ const ClientsList = ({ clients, transactions = [], onAddClient, onViewClient, ca
       </div>
 
       {/* Total Net Profit - Prominent Display */}
-      <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-        <CardContent className="py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                <Wallet className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Total Net Profit</p>
-                <div className={`text-3xl font-bold ${summary.totalNetProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-                  {summary.totalNetProfit >= 0 ? '+' : '-'}${Math.abs(summary.totalNetProfit).toLocaleString()}
-                </div>
+      <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 overflow-hidden">
+        <CardContent className="py-4 md:py-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <Wallet className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs md:text-sm font-medium text-muted-foreground mb-0.5 md:mb-1">Total Net Profit</p>
+              <div className={`text-2xl md:text-3xl font-bold ${summary.totalNetProfit >= 0 ? 'text-success' : 'text-danger'} truncate`}>
+                {summary.totalNetProfit >= 0 ? '+' : '-'}${Math.abs(summary.totalNetProfit).toLocaleString()}
               </div>
             </div>
           </div>

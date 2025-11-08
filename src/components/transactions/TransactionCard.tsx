@@ -53,40 +53,40 @@ const TransactionCard = ({ transaction, onDelete, onEdit, onViewClient, canEdit 
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="space-y-3">
+      <CardContent className="p-3 md:p-4">
+        <div className="space-y-2 md:space-y-3">
           {/* Header */}
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">{getTypeIcon()}</span>
-                <span className={`font-semibold ${getAmountColor()}`}>
+              <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+                <span className="text-base md:text-lg">{getTypeIcon()}</span>
+                <span className={`text-sm md:text-base font-semibold ${getAmountColor()} truncate`}>
                   {getTypeLabel()}: ${transaction.amount.toLocaleString()}
                 </span>
               </div>
-              <p className="text-sm text-foreground">{transaction.description}</p>
+              <p className="text-xs md:text-sm text-foreground line-clamp-2">{transaction.description}</p>
             </div>
             {canEdit && (
-              <div className="flex gap-1 shrink-0">
+              <div className="flex gap-0.5 md:gap-1 shrink-0">
                 {onEdit && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 md:h-8 md:w-8"
                     onClick={onEdit}
                     title="Edit transaction"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-7 w-7 md:h-8 md:w-8"
                   onClick={onDelete}
                   title="Delete transaction"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </Button>
               </div>
             )}
@@ -94,14 +94,16 @@ const TransactionCard = ({ transaction, onDelete, onEdit, onViewClient, canEdit 
 
           {/* Client Badge */}
           {transaction.clientId && transaction.clientName && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
               <Badge 
                 variant="secondary" 
-                className="bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                className="bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 text-xs"
                 onClick={onViewClient}
               >
                 <Building2 className="w-3 h-3 mr-1" />
-                {transaction.clientName} • {transaction.clientType}
+                <span className="truncate max-w-[150px] md:max-w-none">
+                  {transaction.clientName} • {transaction.clientType}
+                </span>
               </Badge>
               {transaction.clientExpenseCategory && (
                 <Badge variant="outline" className="text-xs">
@@ -112,29 +114,30 @@ const TransactionCard = ({ transaction, onDelete, onEdit, onViewClient, canEdit 
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span>{new Date(transaction.date).toLocaleDateString()}</span>
-              <span>•</span>
-              <span>Added by: {transaction.createdBy.name}</span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="whitespace-nowrap">{new Date(transaction.date).toLocaleDateString()}</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="truncate">Added by: {transaction.createdBy.name}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2">
               {transaction.clientId && onViewClient && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs"
+                  className="h-7 text-xs px-2"
                   onClick={onViewClient}
                 >
                   <Eye className="w-3 h-3 mr-1" />
-                  View Client
+                  <span className="hidden sm:inline">View Client</span>
+                  <span className="sm:hidden">View</span>
                 </Button>
               )}
               {transaction.imageUrl && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs"
+                  className="h-7 text-xs px-2"
                   onClick={() => setReceiptDialogOpen(true)}
                 >
                   <FileText className="w-3 h-3 mr-1" />
